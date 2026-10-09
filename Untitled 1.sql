@@ -1,0 +1,1 @@
+select distinct o_orderstatus from orders limit 10;
