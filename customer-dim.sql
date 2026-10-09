@@ -1,0 +1,100 @@
+-- =====================================================
+-- Gold Layer - DIM_CUSTOMER
+-- Single upstream: SILVER.CUSTOMER_MASTER
+--
+-- Customer dimension with demographics, contact,
+-- geography, and loyalty attributes.
+-- Grain = one row per customer.
+--
+-- Pipeline: BRONZE → SILVER (INCREMENTAL) → GOLD (INCREMENTAL)
+-- =====================================================
+
+CREATE OR REPLACE DYNAMIC TABLE SALES_DEV.GOLD.DIM_CUSTOMER
+  TARGET_LAG = DOWNSTREAM
+  WAREHOUSE = COMPUTE_WH
+  REFRESH_MODE = INCREMENTAL
+  INITIALIZE = ON_CREATE
+  COMMENT = 'Customer dimension with demographics, contact, geography, and loyalty attributes. Grain is one row per customer. Use CUSTOMER_DIM_KEY for fact table joins.'
+AS
+SELECT
+    -- Surrogate Key
+    SHA2(CONCAT(
+        COALESCE(c.CUSTOMER_ID, ''),
+        COALESCE(TO_VARCHAR(c.BRONZE_LOAD_TS, 'YYYY-MM-DD HH24:MI:SS.FF6'), '')
+    ), 256)                         AS CUSTOMER_DIM_KEY,
+
+    -- Business Keys
+    c.CUSTOMER_ID                   AS CUSTOMER_ID,
+    c.CUSTOMER_NUMBER               AS CUSTOMER_NUMBER,
+
+    -- Demographics
+    c.FIRST_NAME                    AS FIRST_NAME,
+    c.LAST_NAME                     AS LAST_NAME,
+    c.FULL_NAME                     AS FULL_NAME,
+    c.GENDER                        AS GENDER,
+    c.DATE_OF_BIRTH                 AS DATE_OF_BIRTH,
+
+    -- Contact
+    c.EMAIL                         AS EMAIL,
+    c.PHONE_NUMBER                  AS PHONE_NUMBER,
+    c.PREFERRED_LANGUAGE            AS PREFERRED_LANGUAGE,
+
+    -- Geography
+    c.STREET_ADDRESS                AS STREET_ADDRESS,
+    c.CITY                          AS CITY,
+    c.STATE_PROVINCE                AS STATE_PROVINCE,
+    c.POSTAL_CODE                   AS POSTAL_CODE,
+    c.COUNTRY_CODE                  AS COUNTRY_CODE,
+    c.COUNTRY_NAME                  AS COUNTRY_NAME,
+    c.REGION                        AS REGION,
+
+    -- Segmentation & Loyalty
+    c.CUSTOMER_SEGMENT              AS CUSTOMER_SEGMENT,
+    c.LOYALTY_TIER                  AS LOYALTY_TIER,
+
+    -- Lifecycle
+    c.REGISTRATION_DATE             AS REGISTRATION_DATE,
+    c.IS_ACTIVE                     AS IS_ACTIVE,
+    c.RECORD_SOURCE                 AS RECORD_SOURCE,
+
+    -- SCD Type 2 Columns
+    c.BRONZE_LOAD_TS                AS EFFECTIVE_START_TS,
+    CAST('9999-12-31 23:59:59' AS TIMESTAMP_NTZ) AS EFFECTIVE_END_TS,
+    TRUE                            AS IS_CURRENT,
+
+    -- Audit
+    c.BRONZE_LOAD_TS                AS __SOURCE_LOAD_TS
+
+FROM SALES_DEV.SILVER.CUSTOMER_MASTER c
+WHERE c.DQ_STATUS = 'PASS';
+
+
+-- =====================================================
+-- Column Comments for Semantic Layer
+-- =====================================================
+ALTER DYNAMIC TABLE SALES_DEV.GOLD.DIM_CUSTOMER ALTER COLUMN CUSTOMER_DIM_KEY COMMENT 'Hash-based surrogate key for fact table joins';
+ALTER DYNAMIC TABLE SALES_DEV.GOLD.DIM_CUSTOMER ALTER COLUMN CUSTOMER_ID COMMENT 'Unique customer identifier - primary business key';
+ALTER DYNAMIC TABLE SALES_DEV.GOLD.DIM_CUSTOMER ALTER COLUMN CUSTOMER_NUMBER COMMENT 'Customer-facing account number';
+ALTER DYNAMIC TABLE SALES_DEV.GOLD.DIM_CUSTOMER ALTER COLUMN FIRST_NAME COMMENT 'Customer first name';
+ALTER DYNAMIC TABLE SALES_DEV.GOLD.DIM_CUSTOMER ALTER COLUMN LAST_NAME COMMENT 'Customer last name';
+ALTER DYNAMIC TABLE SALES_DEV.GOLD.DIM_CUSTOMER ALTER COLUMN FULL_NAME COMMENT 'Full display name for reporting';
+ALTER DYNAMIC TABLE SALES_DEV.GOLD.DIM_CUSTOMER ALTER COLUMN GENDER COMMENT 'Customer gender';
+ALTER DYNAMIC TABLE SALES_DEV.GOLD.DIM_CUSTOMER ALTER COLUMN DATE_OF_BIRTH COMMENT 'Date of birth for age-based analysis';
+ALTER DYNAMIC TABLE SALES_DEV.GOLD.DIM_CUSTOMER ALTER COLUMN EMAIL COMMENT 'Customer email address';
+ALTER DYNAMIC TABLE SALES_DEV.GOLD.DIM_CUSTOMER ALTER COLUMN PHONE_NUMBER COMMENT 'Customer phone number';
+ALTER DYNAMIC TABLE SALES_DEV.GOLD.DIM_CUSTOMER ALTER COLUMN PREFERRED_LANGUAGE COMMENT 'Preferred communication language';
+ALTER DYNAMIC TABLE SALES_DEV.GOLD.DIM_CUSTOMER ALTER COLUMN STREET_ADDRESS COMMENT 'Street address';
+ALTER DYNAMIC TABLE SALES_DEV.GOLD.DIM_CUSTOMER ALTER COLUMN CITY COMMENT 'City of residence';
+ALTER DYNAMIC TABLE SALES_DEV.GOLD.DIM_CUSTOMER ALTER COLUMN STATE_PROVINCE COMMENT 'State or province';
+ALTER DYNAMIC TABLE SALES_DEV.GOLD.DIM_CUSTOMER ALTER COLUMN POSTAL_CODE COMMENT 'Postal or ZIP code';
+ALTER DYNAMIC TABLE SALES_DEV.GOLD.DIM_CUSTOMER ALTER COLUMN COUNTRY_CODE COMMENT 'FK to DIM_COUNTRY - customer country';
+ALTER DYNAMIC TABLE SALES_DEV.GOLD.DIM_CUSTOMER ALTER COLUMN COUNTRY_NAME COMMENT 'Country name for display';
+ALTER DYNAMIC TABLE SALES_DEV.GOLD.DIM_CUSTOMER ALTER COLUMN REGION COMMENT 'Geographic region code';
+ALTER DYNAMIC TABLE SALES_DEV.GOLD.DIM_CUSTOMER ALTER COLUMN CUSTOMER_SEGMENT COMMENT 'Customer segment for marketing and analytics';
+ALTER DYNAMIC TABLE SALES_DEV.GOLD.DIM_CUSTOMER ALTER COLUMN LOYALTY_TIER COMMENT 'Loyalty program tier (GOLD, SILVER, BRONZE, etc.)';
+ALTER DYNAMIC TABLE SALES_DEV.GOLD.DIM_CUSTOMER ALTER COLUMN REGISTRATION_DATE COMMENT 'Date the customer registered';
+ALTER DYNAMIC TABLE SALES_DEV.GOLD.DIM_CUSTOMER ALTER COLUMN IS_ACTIVE COMMENT 'Whether customer account is active (Y/N)';
+ALTER DYNAMIC TABLE SALES_DEV.GOLD.DIM_CUSTOMER ALTER COLUMN RECORD_SOURCE COMMENT 'Source system where customer record originated';
+ALTER DYNAMIC TABLE SALES_DEV.GOLD.DIM_CUSTOMER ALTER COLUMN EFFECTIVE_START_TS COMMENT 'SCD2 record effective start timestamp';
+ALTER DYNAMIC TABLE SALES_DEV.GOLD.DIM_CUSTOMER ALTER COLUMN EFFECTIVE_END_TS COMMENT 'SCD2 record effective end timestamp';
+ALTER DYNAMIC TABLE SALES_DEV.GOLD.DIM_CUSTOMER ALTER COLUMN IS_CURRENT COMMENT 'SCD2 current record indicator';

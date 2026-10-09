@@ -1,0 +1,1269 @@
+name: TALK_TO_YOUR_DATA
+description: Comprehensive sales analytics model covering the full SALES_DEV gold
+  layer star schema. Includes date, customer, product, store, and country dimensions;
+  transaction-level and line-item-level fact tables; and pre-aggregated daily, weekly,
+  and monthly summary tables. Use for revenue analysis, customer segmentation, product
+  performance, store comparisons, and trend reporting.
+tables:
+  - name: DIM_DATE
+    description: Date dimension with calendar attributes. Date range is derived dynamically
+      from MIN/MAX transaction dates in SILVER.SALES_HEADER. Use DATE_DIM_KEY (hash)
+      for fact table joins.
+    base_table:
+      database: SALES_DEV
+      schema: GOLD
+      table: DIM_DATE
+    primary_key:
+      columns:
+        - DATE_DIM_KEY
+    dimensions:
+      - name: DATE_DIM_KEY
+        description: Hash-based surrogate key (SHA-256 of YYYY-MM-DD) for fact table
+          joins
+        expr: DATE_DIM_KEY
+        data_type: VARCHAR
+      - name: DATE_KEY
+        description: Readable integer date (YYYYMMDD) - use DATE_DIM_KEY for joins
+        expr: DATE_KEY
+        data_type: NUMBER
+      - name: CAL_DATE
+        description: Calendar date value
+        expr: CAL_DATE
+        data_type: DATE
+      - name: DAY_OF_MONTH
+        description: Day number within month (1-31)
+        expr: DAY_OF_MONTH
+        data_type: NUMBER
+      - name: DAY_OF_WEEK_NUM
+        description: Day of week number (0=Sun, 6=Sat)
+        expr: DAY_OF_WEEK_NUM
+        data_type: NUMBER
+      - name: DAY_NAME
+        description: Day name abbreviation (Mon, Tue, etc.)
+        expr: DAY_NAME
+        data_type: VARCHAR
+      - name: DAY_OF_YEAR
+        description: Day number within year (1-366)
+        expr: DAY_OF_YEAR
+        data_type: NUMBER
+      - name: IS_WEEKEND
+        description: TRUE if Saturday or Sunday
+        expr: IS_WEEKEND
+        data_type: BOOLEAN
+      - name: WEEK_OF_YEAR
+        description: Week number within year
+        expr: WEEK_OF_YEAR
+        data_type: NUMBER
+      - name: MONTH_NUM
+        description: Month number (1-12)
+        expr: MONTH_NUM
+        data_type: NUMBER
+      - name: MONTH_NAME
+        description: Month name abbreviation (Jan, Feb, etc.)
+        expr: MONTH_NAME
+        data_type: VARCHAR
+      - name: QUARTER_NUM
+        description: Calendar quarter number (1-4)
+        expr: QUARTER_NUM
+        data_type: NUMBER
+      - name: QUARTER_NAME
+        description: Quarter label (Q1-Q4)
+        expr: QUARTER_NAME
+        data_type: VARCHAR
+      - name: YEAR_NUM
+        description: Calendar year number
+        expr: YEAR_NUM
+        data_type: NUMBER
+      - name: FISCAL_YEAR
+        description: Fiscal year (Apr-Mar)
+        expr: FISCAL_YEAR
+        data_type: NUMBER
+      - name: FISCAL_QUARTER_NUM
+        description: Fiscal quarter number (1-4, starting Apr)
+        expr: FISCAL_QUARTER_NUM
+        data_type: NUMBER
+      - name: YEAR_MONTH_LABEL
+        description: Year-month label (YYYY-MM) for reporting
+        expr: YEAR_MONTH_LABEL
+        data_type: VARCHAR
+    time_dimensions:
+      - name: WEEK_START_DATE
+        description: Start date of the week
+        expr: WEEK_START_DATE
+        data_type: DATE
+      - name: MONTH_START_DATE
+        description: First day of the month
+        expr: MONTH_START_DATE
+        data_type: DATE
+      - name: MONTH_END_DATE
+        description: Last day of the month
+        expr: MONTH_END_DATE
+        data_type: DATE
+      - name: QUARTER_START_DATE
+        description: First day of the calendar quarter
+        expr: QUARTER_START_DATE
+        data_type: DATE
+      - name: YEAR_START_DATE
+        description: First day of the calendar year
+        expr: YEAR_START_DATE
+        data_type: DATE
+    unique_keys:
+      - columns:
+          - CAL_DATE
+  - name: DIM_CUSTOMER
+    description: Customer dimension with demographics, contact, geography, and loyalty
+      attributes. Grain is one row per customer. Use CUSTOMER_DIM_KEY for fact table
+      joins.
+    base_table:
+      database: SALES_DEV
+      schema: GOLD
+      table: DIM_CUSTOMER
+    primary_key:
+      columns:
+        - CUSTOMER_DIM_KEY
+    dimensions:
+      - name: CUSTOMER_DIM_KEY
+        description: Hash-based surrogate key for fact table joins
+        expr: CUSTOMER_DIM_KEY
+        data_type: VARCHAR
+      - name: CUSTOMER_ID
+        description: Unique customer identifier - primary business key
+        expr: CUSTOMER_ID
+        data_type: VARCHAR
+      - name: CUSTOMER_NUMBER
+        description: Customer-facing account number
+        expr: CUSTOMER_NUMBER
+        data_type: VARCHAR
+      - name: FIRST_NAME
+        description: Customer first name
+        expr: FIRST_NAME
+        data_type: VARCHAR
+      - name: LAST_NAME
+        description: Customer last name
+        expr: LAST_NAME
+        data_type: VARCHAR
+      - name: FULL_NAME
+        description: Full display name for reporting
+        expr: FULL_NAME
+        data_type: VARCHAR
+      - name: GENDER
+        description: Customer gender
+        expr: GENDER
+        data_type: VARCHAR
+      - name: EMAIL
+        description: Customer email address
+        expr: EMAIL
+        data_type: VARCHAR
+      - name: PHONE_NUMBER
+        description: Customer phone number
+        expr: PHONE_NUMBER
+        data_type: VARCHAR
+      - name: PREFERRED_LANGUAGE
+        description: Preferred communication language
+        expr: PREFERRED_LANGUAGE
+        data_type: VARCHAR
+      - name: STREET_ADDRESS
+        description: Street address
+        expr: STREET_ADDRESS
+        data_type: VARCHAR
+      - name: CITY
+        description: City of residence
+        expr: CITY
+        data_type: VARCHAR
+      - name: STATE_PROVINCE
+        description: State or province
+        expr: STATE_PROVINCE
+        data_type: VARCHAR
+      - name: POSTAL_CODE
+        description: Postal or ZIP code
+        expr: POSTAL_CODE
+        data_type: VARCHAR
+      - name: COUNTRY_CODE
+        description: FK to DIM_COUNTRY - customer country
+        expr: COUNTRY_CODE
+        data_type: VARCHAR
+      - name: COUNTRY_NAME
+        description: Country name for display
+        expr: COUNTRY_NAME
+        data_type: VARCHAR
+      - name: REGION
+        description: Geographic region code
+        expr: REGION
+        data_type: VARCHAR
+      - name: CUSTOMER_SEGMENT
+        description: Customer segment for marketing and analytics
+        expr: CUSTOMER_SEGMENT
+        data_type: VARCHAR
+      - name: LOYALTY_TIER
+        description: Loyalty program tier (GOLD, SILVER, BRONZE, etc.)
+        expr: LOYALTY_TIER
+        data_type: VARCHAR
+      - name: IS_ACTIVE
+        description: Whether customer account is active (Y/N)
+        expr: IS_ACTIVE
+        data_type: VARCHAR
+      - name: RECORD_SOURCE
+        description: Source system where customer record originated
+        expr: RECORD_SOURCE
+        data_type: VARCHAR
+      - name: IS_CURRENT
+        description: SCD2 current record indicator
+        expr: IS_CURRENT
+        data_type: BOOLEAN
+    time_dimensions:
+      - name: DATE_OF_BIRTH
+        description: Date of birth for age-based analysis
+        expr: DATE_OF_BIRTH
+        data_type: DATE
+      - name: REGISTRATION_DATE
+        description: Date the customer registered
+        expr: REGISTRATION_DATE
+        data_type: DATE
+    unique_keys:
+      - columns:
+          - CUSTOMER_ID
+  - name: DIM_PRODUCT
+    description: Product dimension flattening the Category > Family > Model > SKU
+      hierarchy. Grain is one row per SKU. Use PRODUCT_DIM_KEY for fact table joins.
+    base_table:
+      database: SALES_DEV
+      schema: GOLD
+      table: DIM_PRODUCT
+    primary_key:
+      columns:
+        - SKU_CODE
+    dimensions:
+      - name: PRODUCT_DIM_KEY
+        description: Hash-based surrogate key for fact table joins
+        expr: PRODUCT_DIM_KEY
+        data_type: VARCHAR
+      - name: SKU_CODE
+        description: Product SKU code - business key at leaf grain
+        expr: SKU_CODE
+        data_type: VARCHAR
+      - name: VARIANT
+        description: SKU variant descriptor (colour, size, config)
+        expr: VARIANT
+        data_type: VARCHAR
+      - name: PRICE_TIER
+        description: Pricing tier classification for revenue analysis
+        expr: PRICE_TIER
+        data_type: VARCHAR
+      - name: SKU_IS_ACTIVE
+        description: Whether this SKU is currently active (Y/N)
+        expr: SKU_IS_ACTIVE
+        data_type: VARCHAR
+      - name: MODEL_CODE
+        description: Product model code - parent of SKU
+        expr: MODEL_CODE
+        data_type: VARCHAR
+      - name: MODEL_NAME
+        description: Product model display name
+        expr: MODEL_NAME
+        data_type: VARCHAR
+      - name: MODEL_LIFECYCLE_STATUS
+        description: Model lifecycle stage (ACTIVE, DISCONTINUED, etc.)
+        expr: MODEL_LIFECYCLE_STATUS
+        data_type: VARCHAR
+      - name: FAMILY_CODE
+        description: Product family code - parent of model
+        expr: FAMILY_CODE
+        data_type: VARCHAR
+      - name: FAMILY_NAME
+        description: Product family display name
+        expr: FAMILY_NAME
+        data_type: VARCHAR
+      - name: FAMILY_LAUNCH_YEAR
+        description: Year the product family was launched
+        expr: FAMILY_LAUNCH_YEAR
+        data_type: NUMBER
+      - name: FAMILY_LIFECYCLE_STATUS
+        description: Family lifecycle stage (ACTIVE, DISCONTINUED, etc.)
+        expr: FAMILY_LIFECYCLE_STATUS
+        data_type: VARCHAR
+      - name: CATEGORY_CODE
+        description: Product category code - top of hierarchy
+        expr: CATEGORY_CODE
+        data_type: VARCHAR
+      - name: CATEGORY_NAME
+        description: Product category display name
+        expr: CATEGORY_NAME
+        data_type: VARCHAR
+      - name: REPORTING_SEGMENT
+        description: High-level reporting segment for executive dashboards
+        expr: REPORTING_SEGMENT
+        data_type: VARCHAR
+      - name: IS_CURRENT
+        description: SCD2 current record indicator
+        expr: IS_CURRENT
+        data_type: BOOLEAN
+    time_dimensions:
+      - name: GLOBAL_LAUNCH_DATE
+        description: Global launch date for this SKU
+        expr: GLOBAL_LAUNCH_DATE
+        data_type: DATE
+      - name: MODEL_LAUNCH_DATE
+        description: Date the model was launched
+        expr: MODEL_LAUNCH_DATE
+        data_type: DATE
+      - name: MODEL_DISCONTINUE_DATE
+        description: Date the model was or will be discontinued
+        expr: MODEL_DISCONTINUE_DATE
+        data_type: DATE
+    unique_keys:
+      - columns:
+          - PRODUCT_DIM_KEY
+  - name: DIM_STORE
+    description: Store dimension with location, format, and operational attributes.
+      Grain is one row per store. Use STORE_DIM_KEY for fact table joins.
+    base_table:
+      database: SALES_DEV
+      schema: GOLD
+      table: DIM_STORE
+    primary_key:
+      columns:
+        - STORE_DIM_KEY
+    dimensions:
+      - name: STORE_DIM_KEY
+        description: Hash-based surrogate key for fact table joins
+        expr: STORE_DIM_KEY
+        data_type: VARCHAR
+      - name: STORE_CODE
+        description: Store code - business key
+        expr: STORE_CODE
+        data_type: VARCHAR
+      - name: STORE_NAME
+        description: Full store display name
+        expr: STORE_NAME
+        data_type: VARCHAR
+      - name: FORMAT_CODE
+        description: Store format type (FLAGSHIP, OUTLET, STANDARD, etc.)
+        expr: FORMAT_CODE
+        data_type: VARCHAR
+      - name: LIFECYCLE_STATUS
+        description: Store lifecycle stage (OPEN, CLOSED, PLANNED, etc.)
+        expr: LIFECYCLE_STATUS
+        data_type: VARCHAR
+      - name: IS_ACTIVE
+        description: Whether store is currently active (Y/N)
+        expr: IS_ACTIVE
+        data_type: VARCHAR
+      - name: COUNTRY_CODE
+        description: FK to DIM_COUNTRY - country where store is located
+        expr: COUNTRY_CODE
+        data_type: VARCHAR
+      - name: REGION_CODE
+        description: Geographic region code for the store
+        expr: REGION_CODE
+        data_type: VARCHAR
+      - name: STATE_CODE
+        description: State or province code
+        expr: STATE_CODE
+        data_type: VARCHAR
+      - name: CITY
+        description: City where the store is located
+        expr: CITY
+        data_type: VARCHAR
+      - name: POSTAL_CODE
+        description: Postal or ZIP code
+        expr: POSTAL_CODE
+        data_type: VARCHAR
+      - name: ADDRESS_LINE1
+        description: Street address of the store
+        expr: ADDRESS_LINE1
+        data_type: VARCHAR
+      - name: TAX_JURISDICTION_CODE
+        description: Tax jurisdiction code applicable to this store location
+        expr: TAX_JURISDICTION_CODE
+        data_type: VARCHAR
+      - name: FLOOR_AREA_SQFT
+        description: Store floor area in square feet for capacity analysis
+        expr: FLOOR_AREA_SQFT
+        data_type: NUMBER
+      - name: ANNUAL_RENT_USD
+        description: Annual rent in USD for cost analysis
+        expr: ANNUAL_RENT_USD
+        data_type: NUMBER
+      - name: IS_CURRENT
+        description: SCD2 current record indicator
+        expr: IS_CURRENT
+        data_type: BOOLEAN
+    time_dimensions:
+      - name: STORE_OPEN_DATE
+        description: Date the store opened
+        expr: STORE_OPEN_DATE
+        data_type: DATE
+      - name: STORE_CLOSE_DATE
+        description: Date the store closed (NULL if still open)
+        expr: STORE_CLOSE_DATE
+        data_type: DATE
+    facts:
+      - name: LATITUDE
+        description: GPS latitude for geospatial analysis
+        expr: LATITUDE
+        data_type: NUMBER
+      - name: LONGITUDE
+        description: GPS longitude for geospatial analysis
+        expr: LONGITUDE
+        data_type: NUMBER
+    unique_keys:
+      - columns:
+          - STORE_CODE
+  - name: DIM_COUNTRY
+    description: Country dimension combining region, country, currency and tax attributes
+      for geographic analysis
+    base_table:
+      database: SALES_DEV
+      schema: GOLD
+      table: DIM_COUNTRY
+    primary_key:
+      columns:
+        - COUNTRY_CODE
+    dimensions:
+      - name: COUNTRY_DIM_KEY
+        description: Hash-based surrogate key for fact table joins
+        expr: COUNTRY_DIM_KEY
+        data_type: VARCHAR
+      - name: COUNTRY_CODE
+        description: ISO country code - business key
+        expr: COUNTRY_CODE
+        data_type: VARCHAR
+      - name: COUNTRY_NAME
+        description: Full country name for display
+        expr: COUNTRY_NAME
+        data_type: VARCHAR
+      - name: PRIMARY_LANGUAGE
+        description: Primary spoken language
+        expr: PRIMARY_LANGUAGE
+        data_type: VARCHAR
+      - name: TIMEZONE
+        description: Primary timezone identifier
+        expr: TIMEZONE
+        data_type: VARCHAR
+      - name: MARKET_TIER
+        description: Market classification tier for business segmentation
+        expr: MARKET_TIER
+        data_type: VARCHAR
+      - name: ECOMMERCE_SUPPORTED
+        description: E-commerce operations enabled flag
+        expr: ECOMMERCE_SUPPORTED
+        data_type: VARCHAR
+      - name: RETAIL_STORE_SUPPORTED
+        description: Physical retail store operations flag
+        expr: RETAIL_STORE_SUPPORTED
+        data_type: VARCHAR
+      - name: REGION_CODE
+        description: Geographic region code
+        expr: REGION_CODE
+        data_type: VARCHAR
+      - name: REGION_NAME
+        description: Geographic region name for grouping
+        expr: REGION_NAME
+        data_type: VARCHAR
+      - name: CURRENCY_CODE
+        description: ISO currency code
+        expr: CURRENCY_CODE
+        data_type: VARCHAR
+      - name: CURRENCY_NAME
+        description: Full currency name
+        expr: CURRENCY_NAME
+        data_type: VARCHAR
+      - name: CURRENCY_SYMBOL
+        description: Currency display symbol
+        expr: CURRENCY_SYMBOL
+        data_type: VARCHAR
+      - name: TAX_CODE
+        description: Tax configuration code
+        expr: TAX_CODE
+        data_type: VARCHAR
+      - name: TAX_TYPE
+        description: Type of tax (VAT/GST/SALES_TAX)
+        expr: TAX_TYPE
+        data_type: VARCHAR
+      - name: TAX_INCLUSIVE_FLAG
+        description: Prices include tax flag
+        expr: TAX_INCLUSIVE_FLAG
+        data_type: VARCHAR
+      - name: IS_CURRENT
+        description: SCD2 current record indicator
+        expr: IS_CURRENT
+        data_type: BOOLEAN
+    facts:
+      - name: TAX_RATE
+        description: Tax rate as decimal for calculations
+        expr: TAX_RATE
+        data_type: NUMBER
+    unique_keys:
+      - columns:
+          - COUNTRY_DIM_KEY
+  - name: BRIDGE_PRODUCT_COUNTRY
+    description: Bridge table linking products (SKUs) to countries with local availability
+      dates. Grain is one row per SKU-Country combination. Join to DIM_PRODUCT on
+      SKU_CODE and to DIM_COUNTRY on COUNTRY_CODE.
+    base_table:
+      database: SALES_DEV
+      schema: GOLD
+      table: BRIDGE_PRODUCT_COUNTRY
+    dimensions:
+      - name: BRIDGE_KEY
+        description: Hash-based key for this SKU-Country availability record
+        expr: BRIDGE_KEY
+        data_type: VARCHAR
+      - name: SKU_CODE
+        description: FK to DIM_PRODUCT - identifies the product SKU
+        expr: SKU_CODE
+        data_type: VARCHAR
+      - name: COUNTRY_CODE
+        description: FK to DIM_COUNTRY - identifies the country
+        expr: COUNTRY_CODE
+        data_type: VARCHAR
+      - name: IS_AVAILABLE
+        description: Whether the SKU is currently available in this country (Y/N)
+        expr: IS_AVAILABLE
+        data_type: VARCHAR
+      - name: IS_CURRENT
+        description: SCD2 current record indicator
+        expr: IS_CURRENT
+        data_type: BOOLEAN
+    time_dimensions:
+      - name: LOCAL_LAUNCH_DATE
+        description: Country-specific product launch date
+        expr: LOCAL_LAUNCH_DATE
+        data_type: DATE
+      - name: LOCAL_DISCONTINUE_DATE
+        description: Country-specific product discontinuation date
+        expr: LOCAL_DISCONTINUE_DATE
+        data_type: DATE
+  - name: FACT_SALES
+    description: Sales fact table at line-item grain. Each row is one product sold
+      in a transaction. Joins to DIM_DATE, DIM_CUSTOMER, DIM_STORE, DIM_PRODUCT and
+      DIM_COUNTRY via hash-based dimension keys.
+    base_table:
+      database: SALES_DEV
+      schema: GOLD
+      table: FACT_SALES
+    dimensions:
+      - name: SALES_FACT_KEY
+        description: Hash-based surrogate key for the sales line item
+        expr: SALES_FACT_KEY
+        data_type: VARCHAR
+      - name: DATE_DIM_KEY
+        description: Hash FK to DIM_DATE.DATE_DIM_KEY
+        expr: DATE_DIM_KEY
+        data_type: VARCHAR
+      - name: CUSTOMER_DIM_KEY
+        description: Hash FK to DIM_CUSTOMER.CUSTOMER_DIM_KEY
+        expr: CUSTOMER_DIM_KEY
+        data_type: VARCHAR
+      - name: PRODUCT_DIM_KEY
+        description: Hash FK to DIM_PRODUCT.PRODUCT_DIM_KEY
+        expr: PRODUCT_DIM_KEY
+        data_type: VARCHAR
+      - name: STORE_DIM_KEY
+        description: Hash FK to DIM_STORE.STORE_DIM_KEY
+        expr: STORE_DIM_KEY
+        data_type: VARCHAR
+      - name: COUNTRY_DIM_KEY
+        description: Hash FK to DIM_COUNTRY.COUNTRY_DIM_KEY (derived from store location)
+        expr: COUNTRY_DIM_KEY
+        data_type: VARCHAR
+      - name: TRANSACTION_ID
+        description: Degenerate dimension - sales transaction identifier
+        expr: TRANSACTION_ID
+        data_type: VARCHAR
+      - name: TRANSACTION_NUMBER
+        description: Degenerate dimension - customer-facing receipt number
+        expr: TRANSACTION_NUMBER
+        data_type: VARCHAR
+      - name: TRANSACTION_LINE_ID
+        description: Degenerate dimension - line item identifier (grain)
+        expr: TRANSACTION_LINE_ID
+        data_type: VARCHAR
+      - name: CUSTOMER_ID
+        description: Customer business key
+        expr: CUSTOMER_ID
+        data_type: VARCHAR
+      - name: SKU_CODE
+        description: Product SKU business key
+        expr: SKU_CODE
+        data_type: VARCHAR
+      - name: STORE_CODE
+        description: Store business key
+        expr: STORE_CODE
+        data_type: VARCHAR
+      - name: COUNTRY_CODE
+        description: Country business key of the selling store
+        expr: COUNTRY_CODE
+        data_type: VARCHAR
+      - name: CHANNEL_ID
+        description: Sales channel (STORE, ONLINE, etc.)
+        expr: CHANNEL_ID
+        data_type: VARCHAR
+      - name: PAYMENT_METHOD
+        description: Payment method used for the transaction
+        expr: PAYMENT_METHOD
+        data_type: VARCHAR
+      - name: CURRENCY_CODE
+        description: Transaction currency code
+        expr: CURRENCY_CODE
+        data_type: VARCHAR
+      - name: QUANTITY
+        description: Units sold on this line (additive measure)
+        expr: QUANTITY
+        data_type: NUMBER
+    time_dimensions:
+      - name: TRANSACTION_DATE
+        description: Date of the sales transaction
+        expr: TRANSACTION_DATE
+        data_type: DATE
+    facts:
+      - name: UNIT_PRICE
+        description: Price per unit (non-additive)
+        expr: UNIT_PRICE
+        data_type: NUMBER
+      - name: GROSS_AMOUNT
+        description: Quantity x unit price before discount and tax (additive)
+        expr: GROSS_AMOUNT
+        data_type: NUMBER
+      - name: DISCOUNT_AMOUNT
+        description: Discount applied to the line (additive)
+        expr: DISCOUNT_AMOUNT
+        data_type: NUMBER
+      - name: TAX_AMOUNT
+        description: Tax charged on the line (additive)
+        expr: TAX_AMOUNT
+        data_type: NUMBER
+      - name: LINE_TOTAL
+        description: Net line amount = gross - discount + tax (additive)
+        expr: LINE_TOTAL
+        data_type: NUMBER
+  - name: FACT_SALES_HEADER
+    description: 'Sales header fact at transaction grain (one row per receipt). Use
+      for basket-level KPIs: transaction count, average order value, payment/channel
+      mix, header totals. Joins to dimensions via hash keys; joins to FACT_SALES_ITEM
+      on TRANSACTION_FACT_KEY.'
+    base_table:
+      database: SALES_DEV
+      schema: GOLD
+      table: FACT_SALES_HEADER
+    primary_key:
+      columns:
+        - TRANSACTION_FACT_KEY
+    dimensions:
+      - name: TRANSACTION_FACT_KEY
+        description: Hash-based surrogate key for the transaction; FACT_SALES_ITEM
+          joins on this
+        expr: TRANSACTION_FACT_KEY
+        data_type: VARCHAR
+      - name: DATE_DIM_KEY
+        description: Hash FK to DIM_DATE.DATE_DIM_KEY
+        expr: DATE_DIM_KEY
+        data_type: VARCHAR
+      - name: CUSTOMER_DIM_KEY
+        description: Hash FK to DIM_CUSTOMER.CUSTOMER_DIM_KEY
+        expr: CUSTOMER_DIM_KEY
+        data_type: VARCHAR
+      - name: STORE_DIM_KEY
+        description: Hash FK to DIM_STORE.STORE_DIM_KEY
+        expr: STORE_DIM_KEY
+        data_type: VARCHAR
+      - name: COUNTRY_DIM_KEY
+        description: Hash FK to DIM_COUNTRY.COUNTRY_DIM_KEY (derived from store location)
+        expr: COUNTRY_DIM_KEY
+        data_type: VARCHAR
+      - name: TRANSACTION_ID
+        description: Degenerate dimension - sales transaction identifier
+        expr: TRANSACTION_ID
+        data_type: VARCHAR
+      - name: TRANSACTION_NUMBER
+        description: Degenerate dimension - customer-facing receipt number
+        expr: TRANSACTION_NUMBER
+        data_type: VARCHAR
+      - name: CUSTOMER_ID
+        description: Customer business key
+        expr: CUSTOMER_ID
+        data_type: VARCHAR
+      - name: STORE_CODE
+        description: Store business key
+        expr: STORE_CODE
+        data_type: VARCHAR
+      - name: COUNTRY_CODE
+        description: Country business key of the selling store
+        expr: COUNTRY_CODE
+        data_type: VARCHAR
+      - name: TRANSACTION_DATE
+        description: Date of the sales transaction
+        expr: TRANSACTION_DATE
+        data_type: DATE
+      - name: CHANNEL_ID
+        description: Sales channel (STORE, ONLINE, etc.)
+        expr: CHANNEL_ID
+        data_type: VARCHAR
+      - name: PAYMENT_METHOD
+        description: Payment method used for the transaction
+        expr: PAYMENT_METHOD
+        data_type: VARCHAR
+      - name: CURRENCY_CODE
+        description: Transaction currency code
+        expr: CURRENCY_CODE
+        data_type: VARCHAR
+      - name: LINE_COUNT
+        description: Number of line items on the receipt (basket size)
+        expr: LINE_COUNT
+        data_type: NUMBER
+      - name: TOTAL_QUANTITY
+        description: Total units on the receipt (sum of item quantities)
+        expr: TOTAL_QUANTITY
+        data_type: NUMBER
+    facts:
+      - name: GROSS_AMOUNT
+        description: Receipt gross amount before discount and tax (additive)
+        expr: GROSS_AMOUNT
+        data_type: NUMBER
+      - name: TOTAL_DISCOUNT
+        description: Total discount on the receipt (additive)
+        expr: TOTAL_DISCOUNT
+        data_type: NUMBER
+      - name: TOTAL_TAX
+        description: Total tax on the receipt (additive)
+        expr: TOTAL_TAX
+        data_type: NUMBER
+      - name: NET_TOTAL
+        description: Receipt net total = gross - discount + tax (additive); use for
+          revenue and average order value
+        expr: NET_TOTAL
+        data_type: NUMBER
+      - name: ITEM_LINE_TOTAL
+        description: Sum of item LINE_TOTAL; should equal NET_TOTAL (reconciliation
+          check)
+        expr: ITEM_LINE_TOTAL
+        data_type: NUMBER
+  - name: FACT_SALES_ITEM
+    description: 'Sales item fact at line-item grain (one row per product on a receipt).
+      Use for product-level KPIs: units, revenue by SKU/model/category, discounts
+      by product. Carries header dimension keys so it can be sliced by date, customer,
+      store and country without joining the header fact.'
+    base_table:
+      database: SALES_DEV
+      schema: GOLD
+      table: FACT_SALES_ITEM
+    primary_key:
+      columns:
+        - TRANSACTION_FACT_KEY
+    dimensions:
+      - name: SALES_ITEM_FACT_KEY
+        description: Hash-based surrogate key for the sales line item
+        expr: SALES_ITEM_FACT_KEY
+        data_type: VARCHAR
+      - name: TRANSACTION_FACT_KEY
+        description: Hash FK to FACT_SALES_HEADER.TRANSACTION_FACT_KEY (parent receipt)
+        expr: TRANSACTION_FACT_KEY
+        data_type: VARCHAR
+      - name: DATE_DIM_KEY
+        description: Hash FK to DIM_DATE.DATE_DIM_KEY
+        expr: DATE_DIM_KEY
+        data_type: VARCHAR
+      - name: CUSTOMER_DIM_KEY
+        description: Hash FK to DIM_CUSTOMER.CUSTOMER_DIM_KEY
+        expr: CUSTOMER_DIM_KEY
+        data_type: VARCHAR
+      - name: PRODUCT_DIM_KEY
+        description: Hash FK to DIM_PRODUCT.PRODUCT_DIM_KEY
+        expr: PRODUCT_DIM_KEY
+        data_type: VARCHAR
+      - name: STORE_DIM_KEY
+        description: Hash FK to DIM_STORE.STORE_DIM_KEY
+        expr: STORE_DIM_KEY
+        data_type: VARCHAR
+      - name: COUNTRY_DIM_KEY
+        description: Hash FK to DIM_COUNTRY.COUNTRY_DIM_KEY (derived from store location)
+        expr: COUNTRY_DIM_KEY
+        data_type: VARCHAR
+      - name: TRANSACTION_ID
+        description: Degenerate dimension - sales transaction identifier
+        expr: TRANSACTION_ID
+        data_type: VARCHAR
+      - name: TRANSACTION_NUMBER
+        description: Degenerate dimension - customer-facing receipt number
+        expr: TRANSACTION_NUMBER
+        data_type: VARCHAR
+      - name: TRANSACTION_LINE_ID
+        description: Degenerate dimension - line item identifier (grain)
+        expr: TRANSACTION_LINE_ID
+        data_type: VARCHAR
+      - name: CUSTOMER_ID
+        description: Customer business key
+        expr: CUSTOMER_ID
+        data_type: VARCHAR
+      - name: SKU_CODE
+        description: Product SKU business key
+        expr: SKU_CODE
+        data_type: VARCHAR
+      - name: STORE_CODE
+        description: Store business key
+        expr: STORE_CODE
+        data_type: VARCHAR
+      - name: COUNTRY_CODE
+        description: Country business key of the selling store
+        expr: COUNTRY_CODE
+        data_type: VARCHAR
+      - name: CHANNEL_ID
+        description: Sales channel (STORE, ONLINE, etc.)
+        expr: CHANNEL_ID
+        data_type: VARCHAR
+      - name: PAYMENT_METHOD
+        description: Payment method used for the transaction
+        expr: PAYMENT_METHOD
+        data_type: VARCHAR
+      - name: CURRENCY_CODE
+        description: Transaction currency code
+        expr: CURRENCY_CODE
+        data_type: VARCHAR
+      - name: QUANTITY
+        description: Units sold on this line (additive measure)
+        expr: QUANTITY
+        data_type: NUMBER
+    time_dimensions:
+      - name: TRANSACTION_DATE
+        description: Date of the sales transaction
+        expr: TRANSACTION_DATE
+        data_type: DATE
+    facts:
+      - name: UNIT_PRICE
+        description: Price per unit (non-additive)
+        expr: UNIT_PRICE
+        data_type: NUMBER
+      - name: GROSS_AMOUNT
+        description: Quantity x unit price before discount and tax (additive)
+        expr: GROSS_AMOUNT
+        data_type: NUMBER
+      - name: DISCOUNT_AMOUNT
+        description: Discount applied to the line (additive)
+        expr: DISCOUNT_AMOUNT
+        data_type: NUMBER
+      - name: TAX_AMOUNT
+        description: Tax charged on the line (additive)
+        expr: TAX_AMOUNT
+        data_type: NUMBER
+      - name: LINE_TOTAL
+        description: Net line amount = gross - discount + tax (additive)
+        expr: LINE_TOTAL
+        data_type: NUMBER
+  - name: AGG_SALES_DAILY
+    description: 'Daily aggregated sales summary. Grain: one row per date + store
+      + channel. Use for daily dashboards, trend charts, and operational KPIs.'
+    base_table:
+      database: SALES_DEV
+      schema: GOLD
+      table: AGG_SALES_DAILY
+    dimensions:
+      - name: DATE_DIM_KEY
+        description: Hash FK to DIM_DATE
+        expr: DATE_DIM_KEY
+        data_type: VARCHAR
+      - name: DAY_NAME
+        expr: DAY_NAME
+        data_type: VARCHAR
+      - name: DAY_OF_WEEK_NUM
+        expr: DAY_OF_WEEK_NUM
+        data_type: NUMBER
+      - name: IS_WEEKEND
+        expr: IS_WEEKEND
+        data_type: BOOLEAN
+      - name: STORE_CODE
+        expr: STORE_CODE
+        data_type: VARCHAR
+      - name: STORE_NAME
+        expr: STORE_NAME
+        data_type: VARCHAR
+      - name: COUNTRY_CODE
+        expr: COUNTRY_CODE
+        data_type: VARCHAR
+      - name: COUNTRY_NAME
+        expr: COUNTRY_NAME
+        data_type: VARCHAR
+      - name: CHANNEL_ID
+        expr: CHANNEL_ID
+        data_type: VARCHAR
+      - name: CURRENCY_CODE
+        expr: CURRENCY_CODE
+        data_type: VARCHAR
+      - name: TRANSACTION_COUNT
+        description: Distinct transactions on this date/store/channel
+        expr: TRANSACTION_COUNT
+        data_type: NUMBER
+      - name: UNIQUE_CUSTOMERS
+        description: Distinct customers who transacted
+        expr: UNIQUE_CUSTOMERS
+        data_type: NUMBER
+      - name: TOTAL_LINE_ITEMS
+        expr: TOTAL_LINE_ITEMS
+        data_type: NUMBER
+      - name: TOTAL_UNITS_SOLD
+        expr: TOTAL_UNITS_SOLD
+        data_type: NUMBER
+    time_dimensions:
+      - name: TRANSACTION_DATE
+        description: Calendar date (grain)
+        expr: TRANSACTION_DATE
+        data_type: DATE
+    facts:
+      - name: TOTAL_GROSS_AMOUNT
+        expr: TOTAL_GROSS_AMOUNT
+        data_type: NUMBER
+      - name: TOTAL_DISCOUNT
+        expr: TOTAL_DISCOUNT
+        data_type: NUMBER
+      - name: TOTAL_TAX
+        expr: TOTAL_TAX
+        data_type: NUMBER
+      - name: TOTAL_NET_REVENUE
+        description: Sum of net total (gross - discount + tax)
+        expr: TOTAL_NET_REVENUE
+        data_type: NUMBER
+      - name: AVG_ORDER_VALUE
+        description: Net revenue / transaction count
+        expr: AVG_ORDER_VALUE
+        data_type: NUMBER
+      - name: AVG_UNITS_PER_TRANSACTION
+        description: Total units / transaction count
+        expr: AVG_UNITS_PER_TRANSACTION
+        data_type: NUMBER
+      - name: DISCOUNT_RATE
+        description: Total discount / gross amount
+        expr: DISCOUNT_RATE
+        data_type: NUMBER
+    unique_keys:
+      - columns:
+          - DATE_DIM_KEY
+          - TRANSACTION_DATE
+          - DAY_NAME
+          - DAY_OF_WEEK_NUM
+          - IS_WEEKEND
+          - STORE_CODE
+          - STORE_NAME
+          - COUNTRY_CODE
+          - COUNTRY_NAME
+          - CURRENCY_CODE
+  - name: AGG_SALES_WEEKLY
+    description: 'Weekly aggregated sales summary. Grain: one row per week + store
+      + channel. Use for weekly reports and week-over-week trend analysis.'
+    base_table:
+      database: SALES_DEV
+      schema: GOLD
+      table: AGG_SALES_WEEKLY
+    dimensions:
+      - name: WEEK_OF_YEAR
+        expr: WEEK_OF_YEAR
+        data_type: NUMBER
+      - name: YEAR_NUM
+        expr: YEAR_NUM
+        data_type: NUMBER
+      - name: STORE_CODE
+        expr: STORE_CODE
+        data_type: VARCHAR
+      - name: STORE_NAME
+        expr: STORE_NAME
+        data_type: VARCHAR
+      - name: COUNTRY_CODE
+        expr: COUNTRY_CODE
+        data_type: VARCHAR
+      - name: COUNTRY_NAME
+        expr: COUNTRY_NAME
+        data_type: VARCHAR
+      - name: CHANNEL_ID
+        expr: CHANNEL_ID
+        data_type: VARCHAR
+      - name: CURRENCY_CODE
+        expr: CURRENCY_CODE
+        data_type: VARCHAR
+      - name: TRADING_DAYS
+        description: Number of distinct days with transactions in this week
+        expr: TRADING_DAYS
+        data_type: NUMBER
+      - name: TRANSACTION_COUNT
+        description: Distinct transactions in the week
+        expr: TRANSACTION_COUNT
+        data_type: NUMBER
+      - name: UNIQUE_CUSTOMERS
+        description: Distinct customers who transacted in the week
+        expr: UNIQUE_CUSTOMERS
+        data_type: NUMBER
+      - name: TOTAL_LINE_ITEMS
+        expr: TOTAL_LINE_ITEMS
+        data_type: NUMBER
+      - name: TOTAL_UNITS_SOLD
+        expr: TOTAL_UNITS_SOLD
+        data_type: NUMBER
+    time_dimensions:
+      - name: WEEK_START_DATE
+        description: Monday of the week (grain)
+        expr: WEEK_START_DATE
+        data_type: DATE
+    facts:
+      - name: TOTAL_GROSS_AMOUNT
+        expr: TOTAL_GROSS_AMOUNT
+        data_type: NUMBER
+      - name: TOTAL_DISCOUNT
+        expr: TOTAL_DISCOUNT
+        data_type: NUMBER
+      - name: TOTAL_TAX
+        expr: TOTAL_TAX
+        data_type: NUMBER
+      - name: TOTAL_NET_REVENUE
+        description: Sum of net total for the week
+        expr: TOTAL_NET_REVENUE
+        data_type: NUMBER
+      - name: AVG_ORDER_VALUE
+        description: Net revenue / transaction count
+        expr: AVG_ORDER_VALUE
+        data_type: NUMBER
+      - name: AVG_UNITS_PER_TRANSACTION
+        expr: AVG_UNITS_PER_TRANSACTION
+        data_type: NUMBER
+      - name: DISCOUNT_RATE
+        description: Total discount / gross amount
+        expr: DISCOUNT_RATE
+        data_type: NUMBER
+      - name: AVG_DAILY_REVENUE
+        description: Net revenue / trading days
+        expr: AVG_DAILY_REVENUE
+        data_type: NUMBER
+    unique_keys:
+      - columns:
+          - WEEK_START_DATE
+          - WEEK_OF_YEAR
+          - YEAR_NUM
+          - STORE_CODE
+          - STORE_NAME
+          - COUNTRY_CODE
+          - COUNTRY_NAME
+          - CURRENCY_CODE
+  - name: AGG_SALES_MONTHLY
+    description: 'Monthly aggregated sales summary. Grain: one row per month + store
+      + channel. Use for monthly reports, MoM trends, and executive summaries.'
+    base_table:
+      database: SALES_DEV
+      schema: GOLD
+      table: AGG_SALES_MONTHLY
+    dimensions:
+      - name: MONTH_NUM
+        expr: MONTH_NUM
+        data_type: NUMBER
+      - name: MONTH_NAME
+        expr: MONTH_NAME
+        data_type: VARCHAR
+      - name: QUARTER_NUM
+        expr: QUARTER_NUM
+        data_type: NUMBER
+      - name: QUARTER_NAME
+        expr: QUARTER_NAME
+        data_type: VARCHAR
+      - name: YEAR_NUM
+        expr: YEAR_NUM
+        data_type: NUMBER
+      - name: FISCAL_YEAR
+        description: Fiscal year (Apr-Mar) for financial reporting
+        expr: FISCAL_YEAR
+        data_type: NUMBER
+      - name: FISCAL_QUARTER_NUM
+        description: Fiscal quarter (1-4, starting Apr)
+        expr: FISCAL_QUARTER_NUM
+        data_type: NUMBER
+      - name: YEAR_MONTH_LABEL
+        description: YYYY-MM label for reporting
+        expr: YEAR_MONTH_LABEL
+        data_type: VARCHAR
+      - name: STORE_CODE
+        expr: STORE_CODE
+        data_type: VARCHAR
+      - name: STORE_NAME
+        expr: STORE_NAME
+        data_type: VARCHAR
+      - name: COUNTRY_CODE
+        expr: COUNTRY_CODE
+        data_type: VARCHAR
+      - name: COUNTRY_NAME
+        expr: COUNTRY_NAME
+        data_type: VARCHAR
+      - name: CHANNEL_ID
+        expr: CHANNEL_ID
+        data_type: VARCHAR
+      - name: CURRENCY_CODE
+        expr: CURRENCY_CODE
+        data_type: VARCHAR
+      - name: TRADING_DAYS
+        description: Number of distinct days with transactions in this month
+        expr: TRADING_DAYS
+        data_type: NUMBER
+      - name: TRANSACTION_COUNT
+        description: Distinct transactions in the month
+        expr: TRANSACTION_COUNT
+        data_type: NUMBER
+      - name: UNIQUE_CUSTOMERS
+        description: Distinct customers who transacted in the month
+        expr: UNIQUE_CUSTOMERS
+        data_type: NUMBER
+      - name: TOTAL_LINE_ITEMS
+        expr: TOTAL_LINE_ITEMS
+        data_type: NUMBER
+      - name: TOTAL_UNITS_SOLD
+        expr: TOTAL_UNITS_SOLD
+        data_type: NUMBER
+    time_dimensions:
+      - name: MONTH_START_DATE
+        description: First day of the month (grain)
+        expr: MONTH_START_DATE
+        data_type: DATE
+      - name: MONTH_END_DATE
+        expr: MONTH_END_DATE
+        data_type: DATE
+    facts:
+      - name: TOTAL_GROSS_AMOUNT
+        expr: TOTAL_GROSS_AMOUNT
+        data_type: NUMBER
+      - name: TOTAL_DISCOUNT
+        expr: TOTAL_DISCOUNT
+        data_type: NUMBER
+      - name: TOTAL_TAX
+        expr: TOTAL_TAX
+        data_type: NUMBER
+      - name: TOTAL_NET_REVENUE
+        description: Sum of net total for the month
+        expr: TOTAL_NET_REVENUE
+        data_type: NUMBER
+      - name: AVG_ORDER_VALUE
+        description: Net revenue / transaction count
+        expr: AVG_ORDER_VALUE
+        data_type: NUMBER
+      - name: AVG_UNITS_PER_TRANSACTION
+        expr: AVG_UNITS_PER_TRANSACTION
+        data_type: NUMBER
+      - name: DISCOUNT_RATE
+        description: Total discount / gross amount
+        expr: DISCOUNT_RATE
+        data_type: NUMBER
+      - name: AVG_DAILY_REVENUE
+        description: Net revenue / trading days
+        expr: AVG_DAILY_REVENUE
+        data_type: NUMBER
+    unique_keys:
+      - columns:
+          - MONTH_START_DATE
+          - MONTH_END_DATE
+          - MONTH_NUM
+          - MONTH_NAME
+          - QUARTER_NUM
+          - QUARTER_NAME
+          - YEAR_NUM
+          - FISCAL_YEAR
+          - FISCAL_QUARTER_NUM
+          - YEAR_MONTH_LABEL
+          - STORE_CODE
+          - STORE_NAME
+          - COUNTRY_CODE
+          - COUNTRY_NAME
+          - CURRENCY_CODE
+relationships:
+  - name: FACT_SALES_HEADER_TO_DIM_COUNTRY
+    left_table: FACT_SALES_HEADER
+    right_table: DIM_COUNTRY
+    join_type: inner
+    relationship_type: many_to_one
+    relationship_columns:
+      - left_column: COUNTRY_CODE
+        right_column: COUNTRY_CODE
+  - name: FACT_SALES_HEADER_TO_DIM_CUSTOMER
+    left_table: FACT_SALES_HEADER
+    right_table: DIM_CUSTOMER
+    join_type: inner
+    relationship_type: many_to_one
+    relationship_columns:
+      - left_column: CUSTOMER_ID
+        right_column: CUSTOMER_ID
+  - name: FACT_SALES_HEADER_TO_DIM_DATE
+    left_table: FACT_SALES_HEADER
+    right_table: DIM_DATE
+    join_type: inner
+    relationship_type: many_to_one
+    relationship_columns:
+      - left_column: TRANSACTION_DATE
+        right_column: CAL_DATE
+  - name: FACT_SALES_HEADER_TO_DIM_STORE
+    left_table: FACT_SALES_HEADER
+    right_table: DIM_STORE
+    join_type: inner
+    relationship_type: many_to_one
+    relationship_columns:
+      - left_column: STORE_CODE
+        right_column: STORE_CODE
+  - name: FACT_SALES_ITEM_TO_DIM_PRODUCT
+    left_table: FACT_SALES_ITEM
+    right_table: DIM_PRODUCT
+    join_type: inner
+    relationship_type: many_to_one
+    relationship_columns:
+      - left_column: SKU_CODE
+        right_column: SKU_CODE
+verified_queries:
+  - name: 0;1
+    question: What is the total revenue and number of transactions?
+    sql: SELECT SUM(NET_TOTAL) AS total_revenue, COUNT(DISTINCT TRANSACTION_ID) AS
+      total_transactions FROM fact_sales_header
+    verified_at: 1791455595
+    verified_by: Semantic Model Generator
+  - name: 1;1
+    question: What is the monthly revenue trend?
+    sql: SELECT d.MONTH_NAME, d.YEAR_NUM, SUM(fh.NET_TOTAL) AS monthly_revenue FROM
+      fact_sales_header AS fh JOIN dim_date AS d ON fh.TRANSACTION_DATE = d.CAL_DATE
+      GROUP BY d.MONTH_NAME, d.YEAR_NUM, d.MONTH_NUM ORDER BY d.YEAR_NUM, d.MONTH_NUM
+    verified_at: 1791455595
+    verified_by: Semantic Model Generator
+  - name: 2;1
+    question: What are the top 10 stores by revenue?
+    sql: SELECT s.STORE_NAME, s.COUNTRY_CODE, SUM(fh.NET_TOTAL) AS store_revenue,
+      COUNT(DISTINCT fh.TRANSACTION_ID) AS transactions FROM fact_sales_header AS
+      fh JOIN dim_store AS s ON fh.STORE_CODE = s.STORE_CODE AND s.IS_CURRENT = TRUE
+      GROUP BY s.STORE_NAME, s.COUNTRY_CODE ORDER BY store_revenue DESC LIMIT 10
+    verified_at: 1791455595
+    verified_by: Semantic Model Generator
+  - name: 3;1
+    question: What is the revenue and units sold by product category?
+    sql: SELECT p.CATEGORY_NAME, SUM(fi.LINE_TOTAL) AS category_revenue, SUM(fi.QUANTITY)
+      AS units_sold FROM fact_sales_item AS fi JOIN dim_product AS p ON fi.SKU_CODE
+      = p.SKU_CODE AND p.IS_CURRENT = TRUE GROUP BY p.CATEGORY_NAME ORDER BY category_revenue
+      DESC
+    verified_at: 1791455595
+    verified_by: Semantic Model Generator
+  - name: 4;1
+    question: How does revenue break down by customer segment and loyalty tier?
+    sql: SELECT c.CUSTOMER_SEGMENT, c.LOYALTY_TIER, COUNT(DISTINCT fh.CUSTOMER_ID)
+      AS customers, SUM(fh.NET_TOTAL) AS segment_revenue, IFF(COUNT(DISTINCT fh.TRANSACTION_ID)
+      = 0 OR COUNT(DISTINCT fh.TRANSACTION_ID) IS NULL, 0, SUM(fh.NET_TOTAL) / COUNT(DISTINCT
+      fh.TRANSACTION_ID)) AS avg_order_value FROM fact_sales_header AS fh JOIN dim_customer
+      AS c ON fh.CUSTOMER_ID = c.CUSTOMER_ID AND c.IS_CURRENT = TRUE GROUP BY c.CUSTOMER_SEGMENT,
+      c.LOYALTY_TIER ORDER BY segment_revenue DESC
+    verified_at: 1791455595
+    verified_by: Semantic Model Generator
+  - name: 5;1
+    question: What is the revenue split by sales channel?
+    sql: SELECT CHANNEL_ID, SUM(TOTAL_NET_REVENUE) AS channel_revenue, SUM(TRANSACTION_COUNT)
+      AS transactions FROM agg_sales_monthly GROUP BY CHANNEL_ID ORDER BY channel_revenue
+      DESC
+    verified_at: 1791455595
+    verified_by: Semantic Model Generator
+  - name: 6;1
+    question: Show me a monthly summary of revenue, customers and transactions
+    sql: SELECT YEAR_MONTH_LABEL, SUM(TOTAL_NET_REVENUE) AS revenue, SUM(UNIQUE_CUSTOMERS)
+      AS customers, SUM(TRANSACTION_COUNT) AS transactions FROM agg_sales_monthly
+      GROUP BY YEAR_MONTH_LABEL ORDER BY YEAR_MONTH_LABEL
+    verified_at: 1791455595
+    verified_by: Semantic Model Generator
+  - name: 7;1
+    question: What is the revenue by country and region?
+    sql: SELECT cn.COUNTRY_NAME, cn.REGION_NAME, SUM(fh.NET_TOTAL) AS country_revenue
+      FROM fact_sales_header AS fh JOIN dim_country AS cn ON fh.COUNTRY_CODE = cn.COUNTRY_CODE
+      AND cn.IS_CURRENT = TRUE GROUP BY cn.COUNTRY_NAME, cn.REGION_NAME ORDER BY country_revenue
+      DESC
+    verified_at: 1791455595
+    verified_by: Semantic Model Generator

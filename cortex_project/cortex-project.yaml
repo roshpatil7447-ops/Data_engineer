@@ -1,0 +1,7 @@
+version: 1
+artifacts:
+  - path: TALK_TO_YOUR_DATA.sv.yaml
+    type: semantic_view
+    targets:
+      default:
+        object: SALES_DEV.GOLD.TALK_TO_YOUR_DATA
